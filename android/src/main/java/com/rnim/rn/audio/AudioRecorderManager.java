@@ -60,17 +60,18 @@ class AudioRecorderManager extends ReactContextBaseJavaModule {
   private boolean includeBase64 = false;
   private Timer timer;
   private StopWatch stopWatch;
-  
+
   private boolean isPauseResumeCapable = false;
   private Method pauseMethod = null;
   private Method resumeMethod = null;
+  private int progressUpdateInterval = 1000;
 
 
   public AudioRecorderManager(ReactApplicationContext reactContext) {
     super(reactContext);
     this.context = reactContext;
     stopWatch = new StopWatch();
-    
+
     isPauseResumeCapable = Build.VERSION.SDK_INT > Build.VERSION_CODES.M;
     if (isPauseResumeCapable) {
       try {
@@ -129,6 +130,7 @@ class AudioRecorderManager extends ReactContextBaseJavaModule {
       recorder.setAudioEncodingBitRate(recordingSettings.getInt("AudioEncodingBitRate"));
       recorder.setOutputFile(destFile.getPath());
       includeBase64 = recordingSettings.getBoolean("IncludeBase64");
+      setProgressUpdateInterval(recordingSettings.getInt("ProgressUpdateInterval"));
     }
     catch(final Exception e) {
       logAndRejectPromise(promise, "COULDNT_CONFIGURE_MEDIA_RECORDER" , "Make sure you've added RECORD_AUDIO permission to your AndroidManifest.xml file "+e.getMessage());
@@ -302,7 +304,7 @@ class AudioRecorderManager extends ReactContextBaseJavaModule {
         return;
       }
     }
-    
+
     isPaused = false;
     promise.resolve(null);
   }
@@ -315,10 +317,16 @@ class AudioRecorderManager extends ReactContextBaseJavaModule {
         if (!isPaused) {
           WritableMap body = Arguments.createMap();
           body.putDouble("currentTime", stopWatch.getTimeSeconds());
+          int amplitude = recorder.getMaxAmplitude();
+          if (amplitude == 0) {
+            body.putInt("currentMetering", -160);
+          } else {
+            body.putInt("currentMetering", (int) (20 * Math.log(((double) amplitude) / 32767d)));
+          }
           sendEvent("recordingProgress", body);
         }
       }
-    }, 0, 1000);
+    }, 0, progressUpdateInterval);
   }
 
   private void stopTimer(){
@@ -338,5 +346,13 @@ class AudioRecorderManager extends ReactContextBaseJavaModule {
   private void logAndRejectPromise(Promise promise, String errorCode, String errorMessage) {
     Log.e(TAG, errorMessage);
     promise.reject(errorCode, errorMessage);
+  }
+
+  private void setProgressUpdateInterval(int progressUpdateInterval) {
+    if(progressUpdateInterval < 100) {
+      this.progressUpdateInterval = 100;
+    } else {
+      this.progressUpdateInterval = progressUpdateInterval;
+    }
   }
 }
