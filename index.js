@@ -57,7 +57,8 @@ var AudioRecorder = {
         recordingOptions.AudioEncoding,
         recordingOptions.MeteringEnabled,
         recordingOptions.MeasurementMode,
-        recordingOptions.IncludeBase64
+        recordingOptions.IncludeBase64,                                                                   
+        recordingOptions.ProgressUpdateInterval
       );
     } else {
       return AudioRecorderManager.prepareRecordingAtPath(path, recordingOptions);
